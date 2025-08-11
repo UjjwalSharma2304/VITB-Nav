@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>VITB Navigator</title>
+  <link rel="icon" type="image/png" href="image/logo.png" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    #map {
+      height: 100vh;
+      width: 100%;
+      background: #dfe6e9;
+    }
+
+    .input-box {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1500;
+      background: #5f92ff; /* nice gradient start */
+      background: linear-gradient(135deg, #3685df 0%, #3899da 100%);
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      padding: 12px;
+      display: flex;
+      gap: 12px;
+      max-width: 800px;
+      width: 90vw;
+      align-items: center;
+      color: white;
+    }
+
+    .input-box input {
+      flex-grow: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: none;
+      font-size: 15px;
+      outline: none;
+      color: #333;
+    }
+    .input-box input::placeholder {
+      color: #666;
+      font-style: italic;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      color:  #3685df;
+      transition: background-color 0.2s ease;
+    }
+    .btn:hover {
+      background-color: #d9e6fa;
+    }
+
+    #suggestions {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 800px;
+      width: 90vw;
+      background: white;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      max-height: 160px;
+      overflow-y: auto;
+      display: none;
+      z-index: 1600;
+    }
+    #suggestions div {
+      padding: 10px 15px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    #suggestions div:hover {
+      background: #3685df;
+      color: #ffffff;
+    }
+
+    .travel-info-box {
+      position: absolute;
+      bottom: 18px;
+      left: 18px;
+      z-index: 1500;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 12px 15px;
+      border-radius: 10px;
+      color: #333;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      font-weight: 600;
+      min-width: 180px;
+      font-size: 14px;
+    }
+
+    .live-toggle {
+      position: absolute;
+      bottom: 18px;
+      right: 18px;
+      z-index: 1500;
+      background: #3685df;
+      border: none;
+      color: white;
+      font-weight: 700;
+      padding: 12px 20px;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(255, 126, 95, 0.6);
+      transition: background-color 0.25s ease;
+    }
+    .live-toggle:hover {
+      background: #feb47b;
+    }
+
+    @media (max-width: 600px) {
+      .input-box {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .btn, .live-toggle {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="map" aria-hidden="false"></div>
+
+  <div class="input-box" role="search" aria-label="Campus navigation">
+    <input
+      id="from"
+      type="text"
+      placeholder="From (or live 📍)"
+      aria-label="From location"
+      autocomplete="off"
+      aria-autocomplete="list"
+      aria-controls="suggestions"
+    />
+    <button class="btn" title="Use current location" id="useCurrentBtn">📍</button>
+    <input
+      id="to"
+      type="text"
+      placeholder="To"
+      aria-label="To location"
+      autocomplete="off"
+      aria-autocomplete="list"
+      aria-controls="suggestions"
+    />
+    <button class="btn" id="goBtn" title="Navigate">Go ➜</button>
+  </div>
+
+  <div id="suggestions" role="listbox" aria-label="Location suggestions"></div>
+
+  <div class="travel-info-box" id="travelInfo" aria-live="polite">
+    <b>Trip Data</b><br />
+    Distance: -- km<br />
+    Estimated time: -- mins
+  </div>
+
+  <button class="live-toggle" id="liveToggle" aria-pressed="false">
+    Start live location
+  </button>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <script>
+    // OpenRouteService API Key - free signup needed at https://openrouteservice.org
+    const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjYzN2VlYzJiYWFkNDRmYTJhNmMzMmM5OTRkMWEzZDQ2IiwiaCI6Im11cm11cjY0In0=';
+
+    const WALKING_SPEED_KMPH = 5;
+
+    const LANDMARKS = {
+      "Academic Block 1": [23.077580, 76.851500],
+        "Academic Block 2": [23.073612, 76.855770],
+        "Lab Complex": [23.078537, 76.850052],
+        "Architecture Building": [23.077985, 76.850245],
+        "Multipurpose Hall": [23.076100, 76.849687],
+        "Package Collection Area": [23.074570, 76.850159],
+        "OpenAir Auditorium": [23.074333, 76.851050],
+        "Mayuri Mess": [23.073607, 76.860247],
+        "Chancellor's Residence": [23.074846, 76.851441],
+        "Girls Hostel B1": [23.075335, 76.852632],
+        "Girls Hostel B2": [23.075359, 76.853743],
+        "AB Dakshin": [23.072489, 76.857219],
+        "Bistro Cafe": [23.072744, 76.857463],
+        "Boys Hostel B1":[23.075117, 76.860030],
+        "Boys Hostel B2":[23.073045, 76.860003],
+        "Boys Hostel B3":[23.073267, 76.859515],
+        "Boys Hostel B4":[23.073133, 76.858742],
+        "Boys Hostel B5":[23.073558, 76.858764],
+        "Boys Hostel B6":[23.072156, 76.860325],
+      
+      //Add more locations here
+    };
+
+    // Initialize map centered on VITB campus
+    const map = L.map('map').setView([23.075606, 76.854644], 16);
+
+    // OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    // Roads layer if you want to load your own GeoJSON file:
+    /*
+    let roadsLayer = null;
+    fetch('export.geojson')
+      .then((r) => r.json())
+      .then((data) => {
+        roadsLayer = L.geoJSON(data, {
+          style: (feature) => {
+            const c = feature?.properties?.highway || '';
+            if (c === 'footway' || c === 'path')
+              return { color: '#d6d8da', weight: 2, opacity: 0.9 };
+            if (c === 'residential' || c === 'service')
+              return { color: '#c5c9cc', weight: 2, opacity: 0.9 };
+            return { color: '#bfc4c6', weight: 2, opacity: 0.9 };
+          },
+        }).addTo(map);
+      })
+      .catch((e) => console.warn('GeoJSON roads not loaded.', e));
+    */
+
+    const suggestBox = document.getElementById('suggestions');
+
+    function showSuggestions(input) {
+      const val = input.value.trim().toLowerCase();
+      suggestBox.innerHTML = '';
+      if (!val) {
+        suggestBox.style.display = 'none';
+        return;
+      }
+      const matches = Object.keys(LANDMARKS).filter((name) =>
+        name.toLowerCase().includes(val)
+      );
+      if (matches.length === 0) {
+        suggestBox.style.display = 'none';
+        return;
+      }
+      const rect = input.getBoundingClientRect();
+      suggestBox.style.width = rect.width + 'px';
+      suggestBox.style.top = rect.bottom + window.scrollY + 'px';
+      suggestBox.style.left = rect.left + window.scrollX + 'px';
+      suggestBox.style.display = 'block';
+
+      matches.forEach((name) => {
+        const div = document.createElement('div');
+        div.textContent = name;
+        div.setAttribute('role', 'option');
+        div.addEventListener('click', () => {
+          input.value = name;
+          suggestBox.style.display = 'none';
+          input.focus();
+        });
+        suggestBox.appendChild(div);
+      });
+    }
+
+    ['from', 'to'].forEach((id) => {
+      const el = document.getElementById(id);
+      el.addEventListener('input', () => showSuggestions(el));
+      el.addEventListener('focus', () => showSuggestions(el));
+    });
+
+    document.addEventListener('click', (e) => {
+      if (
+        !e.target.closest('#suggestions') &&
+        !e.target.closest('#from') &&
+        !e.target.closest('#to')
+      ) {
+        suggestBox.style.display = 'none';
+      }
+    });
+
+    function parseCoords(loc) {
+      loc = loc.trim();
+      if (LANDMARKS[loc]) return LANDMARKS[loc];
+      const match = loc.match(
+        /^\s*([+-]?\d+(\.\d+)?)\s*,\s*([+-]?\d+(\.\d+)?)\s*$/
+      );
+      if (match) return [parseFloat(match[1]), parseFloat(match[3])];
+      return null;
+    }
+
+    let routeLayer = null;
+
+    async function fetchRoute(start, end) {
+      const url = 'https://api.openrouteservice.org/v2/directions/foot-walking/geojson';
+      const body = {
+        coordinates: [
+          [start[1], start[0]],
+          [end[1], end[0]],
+        ],
+      };
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': ORS_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Routing request failed');
+      return res.json();
+    }
+
+    async function navigate() {
+      const fromInput = document.getElementById('from').value;
+      const toInput = document.getElementById('to').value;
+
+      if (!fromInput || !toInput) {
+        alert('Please enter both From and To locations.');
+        return;
+      }
+
+      const fromCoords = parseCoords(fromInput);
+      const toCoords = parseCoords(toInput);
+
+      if (!fromCoords || !toCoords) {
+        alert('Please enter valid locations or coordinates.');
+        return;
+      }
+
+      if (routeLayer) {
+        map.removeLayer(routeLayer);
+        routeLayer = null;
+      }
+
+      try {
+        const routeGeojson = await fetchRoute(fromCoords, toCoords);
+        routeLayer = L.geoJSON(routeGeojson, {
+          style: {
+            color: '#ff7e5f',
+            weight: 6,
+            opacity: 0.8,
+          },
+        }).addTo(map);
+
+        const bounds = routeLayer.getBounds();
+        map.fitBounds(bounds.pad(0.15));
+
+        // Calculate distance and duration (in seconds) from route properties
+        const summary = routeGeojson.features[0].properties.summary;
+        const distKm = summary.distance / 1000;
+        const durationMins = Math.round(summary.duration / 60);
+
+        document.getElementById(
+          'travelInfo'
+        ).innerHTML = `<b>Trip Info</b><br>Distance: ${distKm.toFixed(
+          2
+        )} km<br>Estimated time: ${durationMins} mins`;
+
+        // Add markers for start and end
+        L.marker(fromCoords, {
+          title: 'Start (From)',
+          icon: L.divIcon({
+            className: 'start-marker',
+            html: '<div style="background:#ff7e5f; border-radius:50%; width:24px; height:24px; color:#fff; font-weight:700; display:flex; justify-content:center; align-items:center;">A</div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          }),
+        }).addTo(map);
+
+        L.marker(toCoords, {
+          title: 'End (To)',
+          icon: L.divIcon({
+            className: 'end-marker',
+            html: '<div style="background:#ff7e5f; border-radius:50%; width:24px; height:24px; color:#fff; font-weight:700; display:flex; justify-content:center; align-items:center;">B</div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          }),
+        }).addTo(map);
+      } catch (e) {
+        alert('Could not calculate route: ' + e.message);
+      }
+    }
+
+    // Live location handling
+    let watchId = null;
+    let liveMarker = null;
+    let liveAccuracyCircle = null;
+
+    function startLiveLocation() {
+      if (!navigator.geolocation) {
+        alert('Geolocation not supported by your browser.');
+        return;
+      }
+
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const acc = pos.coords.accuracy || 20;
+
+          if (!liveMarker) {
+            liveMarker = L.circleMarker([lat, lon], {
+              radius: 10,
+              fillColor: '#ff7e5f',
+              color: '#fff',
+              weight: 2,
+              opacity: 1,
+              fillOpacity: 0.9,
+            }).addTo(map).bindPopup('You (Live)');
+          } else {
+            liveMarker.setLatLng([lat, lon]);
+          }
+
+          if (!liveAccuracyCircle) {
+            liveAccuracyCircle = L.circle([lat, lon], {
+              radius: acc,
+              color: '#ff7e5f',
+              fillOpacity: 0.1,
+            }).addTo(map);
+          } else {
+            liveAccuracyCircle.setLatLng([lat, lon]);
+            liveAccuracyCircle.setRadius(acc);
+          }
+
+          map.panTo([lat, lon]);
+        },
+        (err) => {
+          alert('Unable to get live position.');
+          console.error(err);
+        },
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+      );
+    }
+
+    function stopLiveLocation() {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      if (liveMarker) {
+        map.removeLayer(liveMarker);
+        liveMarker = null;
+      }
+      if (liveAccuracyCircle) {
+        map.removeLayer(liveAccuracyCircle);
+        liveAccuracyCircle = null;
+      }
+    }
+
+    function toggleLive() {
+      const btn = document.getElementById('liveToggle');
+      if (!watchId) {
+        startLiveLocation();
+        btn.textContent = 'Stop live location';
+        btn.setAttribute('aria-pressed', 'true');
+      } else {
+        stopLiveLocation();
+        btn.textContent = 'Start live location';
+        btn.setAttribute('aria-pressed', 'false');
+      }
+    }
+
+    // Use current location for "from" input
+    function useCurrentLocationAsFrom() {
+      if (!navigator.geolocation) {
+        alert('Geolocation not supported.');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          document.getElementById('from').value = lat.toFixed(5) + ', ' + lon.toFixed(5);
+          map.setView([lat, lon], 17);
+        },
+        () => alert('Unable to get current location.')
+      );
+    }
+
+    document.getElementById('goBtn').addEventListener('click', navigate);
+    document.getElementById('liveToggle').addEventListener('click', toggleLive);
+    document.getElementById('useCurrentBtn').addEventListener('click', useCurrentLocationAsFrom);
+  </script>
+</body>
+</html>
