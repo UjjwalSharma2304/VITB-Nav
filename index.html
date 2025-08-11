@@ -1,331 +1,192 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>VITB Navigator</title>
-    <link rel="icon" type="image/png" href="image/logo.png">
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    <style>
-        #map { height: 100vh; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Welcome to VITB Navigator</title>
 
-        .travel-info-box {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            max-width: 150px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-            z-index: 1002;
-            backdrop-filter: blur(4px);
-            line-height: 1.4;
-        }
+  <!-- Google Fonts: Poppins -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
 
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .input-box {
-                width: 90%;
-                top: 10px;
-                padding: 10px 12px;
-            }
-            .input-box input {
-                font-size: 14px;
-                padding: 8px 10px;
-            }
-            .input-box button {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-            .leaflet-routing-container {
-                font-size: 11px;
-                width: 160px;
-                max-height: 120px;
-            }
-            .travel-info-box {
-                font-size: 20px;
-                max-width: 330px;
-                padding: 10px 16px;
-                background-color: linear-gradient(135deg, #6977f7, #698af7);
-            }
-        }
+  <style>
+    /* Reset & base */
+    * {
+      box-sizing: border-box;
+    }
 
-        /* Stylish input container */
-        .input-box {
-            position: absolute;
-            top: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1001;
-            background: linear-gradient(135deg, #6977f7, #698af7);
-            padding: 12px 14px;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 8px;
-            width: 90%;
-            max-width: 500px;
-            animation: gradientShift 8s ease infinite;
-            background-size: 200% 200%;
-        }
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #000000 0%, #1f1f1f 100%);
+      color: #222;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+    }
 
-        .input-box input {
-            flex: 1 1 auto;
-            min-width: 120px;
-            padding: 10px 14px;
-            font-size: 15px;
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            outline: none;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(6px);
-            transition: all 0.3s ease;
-        }
-        .input-box input::placeholder {
-            color: rgba(255, 255, 255, 0.8);
-            font-style: italic;
-        }
-        .input-box input:focus {
-            background: rgba(255, 255, 255, 0.3);
-        }
+    h1 {
+      font-weight: 600;
+      font-size: 3.5rem;
+      margin-bottom: 0.3rem;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    }
 
-        .input-box button {
-            padding: 10px 16px;
-            font-size: 14px;
-            background: rgba(255, 255, 255, 0.3);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            backdrop-filter: blur(6px);
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .input-box button:hover {
-            background: rgba(255, 255, 255, 0.5);
-        }
+    p.subtitle {
+      font-weight: 400;
+      font-size: 1.2rem;
+      color: #e0e7f6;
+      margin-bottom: 40px;
+      max-width: 500px;
+      line-height: 1.6;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    }
 
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+    ul.instructions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      max-width: 820px;
+      padding: 0;
+      margin: 0 0 50px 0;
+      list-style: none;
+    }
 
-        .leaflet-routing-container {
-            position: absolute !important;
-            bottom: 10px;
-            right: 10px;
-            width: 200px;
-            max-height: 150px;
-            font-size: 12px;
-            overflow-y: auto;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 8px;
-            box-shadow: 0 0 8px rgba(0,0,0,0.2);
-            z-index: 1000;
-        }
+    ul.instructions li {
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 18px 22px;
+      flex: 1 1 240px;
+      color: #333;
+      font-weight: 500;
+      font-size: 1rem;
+      line-height: 1.4;
+      transition: transform 0.25s ease;
+      cursor: default;
+      user-select: none;
+      min-width: 180px;
+    }
 
-        @media (max-width: 480px) {
-            .input-box {
-                top: 10px;
-                padding: 10px;
-                gap: 6px;
-            }
-            .input-box input {
-                font-size: 14px;
-                padding: 8px 10px;
-            }
-            .input-box button {
-                font-size: 13px;
-                padding: 8px 12px;
-            }
-        }
-    </style>
+    ul.instructions li:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn {
+      background-color: hsl(130, 66%, 38%);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 18px 48px;
+      font-size: 1.5rem;
+      font-weight: 600;
+      box-shadow: 0 12px 30px rgba(37, 37, 37, 0.9);
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      user-select: none;
+      display: inline-block;
+      min-width: 260px;
+    }
+
+    .btn:hover,
+    .btn:focus {
+      background-color:  hsl(130, 66%, 20%);
+      box-shadow: 0 12px 30pxrgba(37, 37, 37, 0.9);
+      outline: none;
+    }
+
+    footer {
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: #e0e7f6cc;
+      user-select: none;
+    }
+
+    /* Responsive adjustments */
+
+    @media (max-width: 900px) {
+      h1 {
+        font-size: 2.8rem;
+      }
+
+      p.subtitle {
+        font-size: 1.1rem;
+        max-width: 90vw;
+      }
+
+      ul.instructions {
+        max-width: 90vw;
+      }
+
+      ul.instructions li {
+        font-size: 0.95rem;
+        padding: 14px 18px;
+        flex: 1 1 100%;
+        min-width: auto;
+      }
+
+      .btn {
+        font-size: 1.3rem;
+        padding: 16px 40px;
+        min-width: 200px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 30px 15px;
+      }
+
+      h1 {
+        font-size: 2.2rem;
+      }
+
+      p.subtitle {
+        font-size: 1rem;
+      }
+
+      ul.instructions li {
+        font-size: 0.9rem;
+        padding: 12px 14px;
+      }
+
+      .btn {
+        font-size: 1.1rem;
+        padding: 14px 30px;
+        min-width: 180px;
+      }
+    }
+  </style>
 </head>
+
 <body>
-<div class="input-box">
-    <input id="from" list="landmarks" placeholder="From location...">
-    <button onclick="setCurrentLocation()" title="Use current location" style="padding: 10px 16px; font-size: 14px; cursor: pointer;">📍</button>
-    <input id="to" list="landmarks" placeholder="To location...">
-    <datalist id="landmarks">
-        <option value="Academic Block 1">
-        <option value="Academic Block 2">
-        <option value="Lab Complex">
-        <option value="Architecture Building">
-        <option value="Multipurpose Hall">
-        <option value="Package Collection Area">
-        <option value="OpenAir Auditorium">
-        <option value="Mayuri Mess">
-        <option value="Chancellor's Residence">
-        <option value="Girls Hostel B1">
-        <option value="Girls Hostel B2">
-        <option value="AB Dakshin">
-        <option value="Bistro Cafe">
-        <option value="Boys Hostel B1">
-        <option value="Boys Hostel B2">
-        <option value="Boys Hostel B3">
-        <option value="Boys Hostel B4">
-        <option value="Boys Hostel B5">
-        <option value="Boys Hostel B6">
-            
-    </datalist>
-    <button onclick="navigate()">Go</button>
-</div>
 
-<div class="travel-info-box" id="travelInfo">
-    Distance: -- km<br>
-    Time: -- mins
-</div>
+  <div style="padding:5px;"><h1>Welcome to VITB Navigator</h1></div>
+  <p class="subtitle">
+    Navigate the VIT Bhopal campus easily with walking routes and live location tracking.
+  </p>
+  <a href="nav.html" class="btn" role="button" aria-label="Go to map page">Start Navigating ➜</a>
 
-<div id="map"></div>
+  <ul style="padding:40px;"class="instructions" aria-label="Instructions on how to use the VITB Navigator">
+    <li>Enter your starting point in the <strong>From</strong> box — use landmarks or GPS coordinates.</li>
+    <li>Enter your destination in the <strong>To</strong> box.</li>
+    <li>Click the <strong>Go</strong> button to see the best walking route with estimated time and distance.</li>
+    <li>Use the <strong>📍</strong> button to autofill your current location.</li>
+    <li>Toggle live location tracking using the button at the bottom right of the map.</li>
+    <li>The map stays confined within campus boundaries for focused navigation.</li>
+  </ul>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
-<script>
-    
+  
 
-    // Campus bounding box coordinates (South-West, North-East)
-    const campusBounds = [
-        [23.06939, 76.86436], // South-West corner
-        [23.08007, 76.84864]  // North-East corner
-    ];
-
-    // Initialize map without fixed zoom
-    const map = L.map('map');
-
-    // Fit the map to the campus area at load
-    map.fitBounds(campusBounds);
-
-    // Restrict map view to campus bounds
-    map.setMaxBounds(campusBounds);
-
-    // Prevent zooming out too far
-    map.setMinZoom(map.getBoundsZoom(campusBounds) - 0.5);
-
-    L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiYW5tb2xzcml2MDczIiwiYSI6ImNtZTYybGdqeDExNHgybG9sb25mZm8xdDkifQ.9-KhGDc-7Ip4KYTIUOe8tw',{
-        id: 'mapbox/streets-v11',
-        tileSize: 512,
-        zoomOffset: -1
-    }).addTo(map);
-
-   
-    const landmarks = {
-        "Academic Block 1": [23.077580, 76.851500],
-        "Academic Block 2": [23.073612, 76.855770],
-        "Lab Complex": [23.078537, 76.850052],
-        "Architecture Building": [23.077985, 76.850245],
-        "Multipurpose Hall": [23.076100, 76.849687],
-        "Package Collection Area": [23.074570, 76.850159],
-        "OpenAir Auditorium": [23.074333, 76.851050],
-        "Mayuri Mess": [23.073607, 76.860247],
-        "Chancellor's Residence": [23.074846, 76.851441],
-        "Girls Hostel B1": [23.075335, 76.852632],
-        "Girls Hostel B2": [23.075359, 76.853743],
-        "AB Dakshin": [23.072489, 76.857219],
-        "Bistro Cafe": [23.072744, 76.857463],
-        "Boys Hostel B1":[23.075117, 76.860030],
-        "Boys Hostel B2":[23.073045, 76.860003],
-        "Boys Hostel B3":[23.073267, 76.859515],
-        "Boys Hostel B4":[23.073133, 76.858742],
-        "Boys Hostel B5":[23.073558, 76.858764],
-        "Boys Hostel B6":[23.072156, 76.860325],
-
-    };
-
-    let routeControl;
-
-    function getCoords(location, callback) {
-        if (landmarks[location]) {
-            callback(landmarks[location]);
-        } else {
-            fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?proximity=75.5650,26.8436&limit=1&access_token=pk.eyJ1IjoidWpqd2FsMjMwNCIsImEiOiJjbWU2NXB4MmIwcjBqMmxzMWV6Zmw1cmMyIn0.TdPE4JDgvYOGk7Jem9njNg`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.features.length > 0) {
-                        callback([data.features[0].center[1], data.features[0].center[0]]);
-                    } else {
-                        alert("Location not found");
-                    }
-                });
-        }
-    }
-
-    function setCurrentLocation() {
-        if (!navigator.geolocation) {
-            alert("Geolocation is not supported by your browser");
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(position => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-
-            // Reverse geocode using Mapbox API
-            fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?limit=1&access_token=pk.eyJ1IjoidWpqd2FsMjMwNCIsImEiOiJjbWU2NXB4MmIwcjBqMmxzMWV6Zmw1cmMyIn0.TdPE4JDgvYOGk7Jem9njNg`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.features && data.features.length > 0) {
-                        // Set the 'from' input to full place name
-                        document.getElementById("from").value = data.features[0].place_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-                    } else {
-                        document.getElementById("from").value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-                    }
-                })
-                .catch(() => {
-                    document.getElementById("from").value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-                });
-        }, () => {
-            alert("Unable to retrieve your location");
-        });
-    }
-
-    function navigate() {
-        const fromLoc = document.getElementById("from").value;
-        const toLoc = document.getElementById("to").value;
-
-        if (!fromLoc || !toLoc) {
-            alert("Please enter both locations");
-            return;
-        }
-
-        getCoords(fromLoc, (fromCoords) => {
-            getCoords(toLoc, (toCoords) => {
-                if (routeControl) {
-                    map.removeControl(routeControl);
-                }
-                routeControl = L.Routing.control({
-                    waypoints: [
-                        L.latLng(fromCoords[0], fromCoords[1]),
-                        L.latLng(toCoords[0], toCoords[1])
-                    ],
-                    routeWhileDragging: true,
-                    show: false
-                }).addTo(map);
-
-                // Update travel info on route found
-                routeControl.on('routesfound', function(e) {
-                    const route = e.routes[0];
-                    const distanceKm = (route.summary.totalDistance / 1000).toFixed(2);
-                    const timeMins = Math.round(route.summary.totalTime / 60);
-
-                    document.getElementById("travelInfo").innerHTML = `
-                        Distance: ${distanceKm} km<br>
-                        Time: ${timeMins} mins
-                    `;
-                });
-            });
-        });
-    }
-</script>
+  <footer>&copy; 2025 VITB Navigator — for VIT Bhopal campus</footer>
 </body>
+
 </html>
